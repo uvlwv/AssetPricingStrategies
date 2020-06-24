@@ -1,0 +1,207 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%erster Teil der Aufgaben
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Vorbereitung
+
+
+%Hier werden die Daten aus der Exel eingelesen
+
+stock_data = readtable('stock_data.csv') ;           %schon eingelesen
+  
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Definition Variabeln
+
+permno = stock_data.permno;
+dateA = stock_data.date;
+tcap = stock_data.tcap;
+returnA = stock_data.xReturn;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Definition Funktionen
+
+%function Indizes
+%Diese Funktion gibt die Indizes aus einer Liste mit einem Inhalt zurück
+
+%function Sorti
+%Diese Funktion sortiert die Aktien
+%EV sind die Gewinne/Verluste der Aktien als Vektor
+%sortieren durch direktes einfügen - kann man anderen Sortierverfahren optimiert werden
+%zusätliche gibt sie noch die eindeutligen nummern zurück (hinter den sortierten Sachen)
+
+%function gewinner
+%function verlierer
+%Funktion, die die Gewinner und Verlierer ausgibt
+%Gewinner, das obere 10% Quantil
+%Verlierer, das untere 10% Quantil
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Strategie
+
+%(unique: Gibt die Anzahl der unterschiedlichen Elemente aus)
+datum= unique(dateA); %Anzahl der unterschiedlichen Monate, bei der die Strategie angewendet wird
+langedatum = max(size(datum));
+GV=zeros(langedatum,1); %Der monatliche Gewinn/Verlust aus der Strategie
+
+
+
+%Die Strategie wird über die einzelnen Monate angewendet
+%Es beginnt bei 12, da man die Daten von den 10 Vorangegangenen Monate
+%braucht und den Vormonat, an dem man kauft/verkauft
+
+
+for sdatum = 12:langedatum  
+    
+    a=0;
+    a2=0;
+    revAk2=[]; 
+    %revAk2: Alle Indizes der Aktien, die in den 10 Monaten vor dem Kauf/Verkauf existieren 
+    for i = 1:10
+        hilf=find(datum(sdatum-12+i)==dateA );
+        
+        revAk2=[revAk2;hilf];
+        
+    end
+    revAk2=sort(revAk2);
+    
+    
+    %revAk1 sind die unterschiedlichen Permno Daten der Aktien
+    revAk1=unique(permno(revAk2));
+   
+    %Hier wird geprüft, welche Aktien aus den gegebenen 8 oder mehr Daten
+    %haben, dies wird benötigt, da man nur Gewinner und Verlierer
+    %betrachtet, die es schon eine Weile gibt
+    
+    Au8 = uber8(permno(revAk2));
+    hilfszahlind=1;
+    lenAk1=max(size(revAk1));
+    revAk0 = zeros(1,lenAk1);
+    for lan = 1:lenAk1
+        if(Au8(lan)>7)
+            revAk0(hilfszahlind)=revAk1(lan);
+            hilfszahlind=hilfszahlind +1;
+        end
+    end
+    %revAk0 sind die Aktien, die in den relevanten Monaten mehr oder gleich
+    %8 Werte besitzen, diese ab jetzt betrachtet
+    revAk0=revAk0(revAk0()>0);
+    
+    %Hier werden die Renditen der letzten 10 Monate kumuliert und in kum
+    %gespeicher
+    
+    kum=zeros(max(size(revAk0)),1);
+    for relA = 1:max(size(revAk0)) %über alle relevanten Aktien
+        returnAk=0;
+        
+        %Gibt die Indizes zurück, von der relevanten Aktie in dem
+        %jeweiligen Zeitraum 
+        Indi2=find(permno(revAk2)==revAk0(relA));
+        Indi=revAk2(Indi2);
+        indi=1;
+        Indi=Indi(Indi()>0);
+        
+        %Hier werden die Renditen der letzten Monate addiert für jede
+        %relevante Aktie
+        s=0;
+        for indA = 1:max(size(Indi))
+            A=returnA(Indi(indA));
+            if(isnan(A))
+                A=0;
+            end
+            s=s+A;
+        end
+        kum(relA)=s;
+    end
+    
+    
+    %Hier werden die Aktien sortiert, nach ihrer absoluten Rendite
+    [sortGV,ReihenfolgeAk]=sorti(kum,revAk0);
+    Gewin = gewinner(sortGV); %Gibt das oberste 10% Quantil zurück
+    Verli = verlierer(sortGV);%Das untere 10% Quantil
+    
+    GewinA = ReihenfolgeAk(max(size(ReihenfolgeAk))- max(size((Gewin)))+1:max(size((ReihenfolgeAk))));
+    VerliA = ReihenfolgeAk(1:max(size(Verli))); %Aktien der Gewinner
+    
+    
+    GewinVerlust=0;
+    %Die Indizes des Monates, in denen man die Aktien kauft/leerverkauft
+    IndDat11=find(dateA==dateA(sdatum-1));
+    %Die Indizes, in dem man den Gewin/Verlust realisiert
+    IndDat12=find(dateA==dateA(sdatum));
+    Zahl=0; 
+    for anz = 1:max(size(GewinA))
+        
+        GInd = find(permno == GewinA(anz));
+        VInd = find(permno == VerliA(anz));
+        IndGa11 =NaN;
+        IndGa12 =NaN;
+        IndVa11 =NaN;
+        IndVa12 =NaN;
+        
+        %Hier wird jeweils ein Index (oder keiner, wenn es ihn nicht gitb)
+        %ausgegeben, von der jeweiligen Aktie und dem Monat 11 und 12
+        for i=1:max(size(GInd))
+            if(isempty(find(GInd(i)==IndDat11))==0)
+                IndGa11=GInd(i);
+                break
+            end 
+        end
+        for i=1:max(size(GInd))
+            if(isempty(find(GInd(i)==IndDat12))==0)
+                IndGa12=GInd(i);
+                break
+            end 
+        end
+        for i=1:max(size(VInd))
+            if(isempty(find(VInd(i)==IndDat11))==0)
+                IndVa11=VInd(i);
+                break
+            end 
+        end
+        for i=1:max(size(VInd))
+            if(isempty(find(VInd(i)==IndDat12))==0)
+                IndVa12=VInd(i);
+                break
+            end 
+        end
+        %Strategie: Kaufe in Monat 11 für ein Einheit Gewinner und verkaufe
+        %Verlierer für eine Einheit leer => keine Ausgaben
+        %Im nächsten Monat: realisiere (verkaufe Gewinner und kaufe
+        %Verlierer zurück)
+        Verkauf=0;
+        
+        if ((isnan(IndVa12)==0)&&(isnan(IndVa11)==0)&&(isnan(IndGa12)==0)&&(isnan(IndGa11)==0))
+            if((tcap(IndGa11)~=0)&&(tcap(IndVa11)~=0))
+                Verkauf = (tcap(IndGa12)/tcap(IndGa11))-(tcap(IndVa12)/tcap(IndVa11));
+                Zahl=Zahl+1;
+            end
+        end
+        if(isnan(Verkauf))
+            Verkauf=0;
+        end
+        GewinVerlust=GewinVerlust+Verkauf;
+        
+    end
+      GV(sdatum-11)=GewinVerlust;
+      % GV(sdatum-11)=GewinVerlust/Zahl;
+    
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
