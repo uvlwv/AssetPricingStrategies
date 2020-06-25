@@ -58,8 +58,8 @@ GV=zeros(langedatum,1); %Der monatliche Gewinn/Verlust aus der Strategie
 %Es beginnt bei 12, da man die Daten von den 10 Vorangegangenen Monate
 %braucht und den Vormonat, an dem man kauft/verkauft
 
-
-for sdatum = 12:langedatum  
+%langedatum=17;
+for sdatum = 12:langedatum  %67
     
     a=0;
     a2=0;
@@ -113,11 +113,13 @@ for sdatum = 12:langedatum
         %relevante Aktie
         s=0;
         for indA = 1:max(size(Indi))
+            
             A=returnA(Indi(indA));
-            if(isnan(A))
+            if(isnan(A)||tcap(Indi(indA))==0)
                 A=0;
             end
-            s=s+A;
+            %returnA(Indi(indA))/tcap(Indi(indA)); Normiert die Renditen
+            s=s+A/tcap(Indi(indA));
         end
         kum(relA)=s;
     end
@@ -137,7 +139,7 @@ for sdatum = 12:langedatum
     IndDat11=find(dateA==dateA(sdatum-1));
     %Die Indizes, in dem man den Gewin/Verlust realisiert
     IndDat12=find(dateA==dateA(sdatum));
-    Zahl=0; 
+    %Zahl=0; 
     for anz = 1:max(size(GewinA))
         
         GInd = find(permno == GewinA(anz));
@@ -182,17 +184,17 @@ for sdatum = 12:langedatum
         if ((isnan(IndVa12)==0)&&(isnan(IndVa11)==0)&&(isnan(IndGa12)==0)&&(isnan(IndGa11)==0))
             if((tcap(IndGa11)~=0)&&(tcap(IndVa11)~=0))
                 Verkauf = (tcap(IndGa12)/tcap(IndGa11))-(tcap(IndVa12)/tcap(IndVa11));
-                Zahl=Zahl+1;
+                %Zahl=Zahl+1;
             end
         end
         if(isnan(Verkauf))
             Verkauf=0;
         end
-        GewinVerlust=GewinVerlust+Verkauf;
+        GewinVerlust=GewinVerlust+Verkauf;% GewinVerlust=GewinVerlust+Verkauf/Zahl;
         
     end
-      GV(sdatum-11)=GewinVerlust;
-      % GV(sdatum-11)=GewinVerlust/Zahl;
+    
+     GV(sdatum-11)=GewinVerlust; 
     
 end
 
